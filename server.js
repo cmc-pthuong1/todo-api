@@ -1,0 +1,41 @@
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const { MongoMemoryServer } = require('mongodb-memory-server');
+
+const fs = require('fs');
+const { globalErrorHandler } = require('./middlewares/error');
+
+const app = express();
+app.use(express.json());
+app.use(cors());
+
+let mongoServer; // Khai báo biến toàn cục để giữ Data trên RAM, chống Node.js tự động dọn rác (GC)
+
+// Khởi tạo MongoDB Ảo
+async function connectDB() {
+  mongoServer = await MongoMemoryServer.create(); // Không dùng chữ const ở đây nữa
+  const uri = mongoServer.getUri();
+  
+  await mongoose.connect(uri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  });
+  console.log('✅ MongoDB "Áo" trong RAM đã chạy thành công tại:', uri);
+}
+
+// Routes (Auto-Load từ thư mục routes)
+fs.readdirSync('./routes').forEach((file) => {
+  if (file.endsWith('Routes.js')) {
+    const routeName = file.split('Routes.js')[0]; // Cắt lấy chữ 'todo' hoặc 'user'
+    app.use(`/${routeName}s`, require(`./routes/${file}`));
+  }
+});
+
+// Global Error Handler (Hứng toàn bộ lỗi từ catchAsync đẩy xuống)
+app.use(globalErrorHandler);
+
+// Start server sau khi DB đã kết nối xong
+connectDB().then(() => {
+  app.listen(3001, () => console.log('Server running on http://localhost:3001'));
+}).catch(err => console.error("Lỗi khi khởi động Database:", err));
