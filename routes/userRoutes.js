@@ -4,8 +4,14 @@ const { catchAsync } = require('../middlewares/error');
 
 const router = express.Router();
 
-// Lấy danh sách toàn bộ Users
+// Lấy danh sách Users (chỉ role: 'user')
 router.get('/', catchAsync(async (req, res) => {
+  const users = await User.find({ role: 'user' });
+  res.json(users);
+}));
+
+// Lấy tất cả Users (bao gồm admin)
+router.get('/all', catchAsync(async (req, res) => {
   const users = await User.find();
   res.json(users);
 }));
@@ -19,6 +25,9 @@ router.get('/:id', catchAsync(async (req, res) => {
 
 // Tạo mới User
 router.post('/', catchAsync(async (req, res) => {
+  if (req.body.role === 'admin') {
+    return res.status(403).json({ message: 'Không được phép tạo tài khoản với quyền admin' });
+  }
   const newUser = new User(req.body);
   await newUser.save();
   res.json(newUser);
@@ -26,6 +35,9 @@ router.post('/', catchAsync(async (req, res) => {
 
 // Sửa User
 router.put('/:id', catchAsync(async (req, res) => {
+  if (req.body.role === 'admin') {
+    return res.status(403).json({ message: 'Không được phép thay đổi quyền thành admin' });
+  }
   const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
   if (!updatedUser) return res.status(404).json({ message: 'Không tìm thấy người dùng để cập nhật' });
   res.json(updatedUser);
