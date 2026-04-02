@@ -1,8 +1,12 @@
 const express = require('express');
 const User = require('../models/User');
 const { catchAsync } = require('../middlewares/error');
+const { protect, authorize } = require('../middlewares/auth');
 
 const router = express.Router();
+
+// Chỉ admin mới được quản lý Users
+router.use(protect, authorize('admin'));
 
 // Lấy danh sách Users (chỉ role: 'user')
 router.get('/', catchAsync(async (req, res) => {

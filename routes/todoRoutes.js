@@ -1,62 +1,55 @@
 const express = require('express');
 const Todo = require('../models/Todo');
-const User = require('../models/User'); // Import bảng User để kiểm tra
 const { catchAsync } = require('../middlewares/error');
+const { protect } = require('../middlewares/auth');
 
 const router = express.Router();
+router.use(protect)// check authenticate
 
-// Lấy danh sách Todos của 1 User cụ thể (Bắt buộc truyền ?userId=...)
+// Lấy danh sách Todos của User đang đăng nhập
 router.get('/', catchAsync(async (req, res) => {
-  const userId = req.query.userId;
+  let query = Todo.find({ userId: req.user._id });
   
-  if (!userId) {
-    return res.status(400).json({ message: 'userId là bắt buộc' });
-  }
-
-  // 1. Kiểm tra xem người dùng có thực sự tồn tại trong DB không
-  const userExists = await User.findById(userId);
-  if (!userExists) {
-    return res.status(404).json({ message: 'Người dùng (userId) không tồn tại trong hệ thống' });
-  }
-
-  // 2. Chuẩn bị câu Query thao tác với Data
-  let query = Todo.find({ userId });
-  
-  // 3. Tùy chọn (Optional): Chỉ khi nào Postman URL có gắn thêm &userInfo=true thì mới kéo Data ra
+  // Tùy chọn: Gắn thêm ?userInfo=true để kéo thông tin User ra
   if (req.query.userInfo === 'true') {
     query = query.populate('user', 'name email');
   }
 
-  const todos = await query; // Kích hoạt chạy lệnh Query
+  const todos = await query;
   res.json(todos);
 }));
 
-// Lấy thông tin 1 Todo theo ID
+// Lấy thông tin 1 Todo theo ID (chỉ xem được Todo của chính mình)
 router.get('/:id', catchAsync(async (req, res) => {
-  const todo = await Todo.findById(req.params.id);
+  const todo = await Todo.findOne({ _id: req.params.id, userId: req.user._id });
   if (!todo) return res.status(404).json({ message: 'Không tìm thấy Todo này' });
   res.json(todo);
 }));
 
-// Tạo mới Todo
+// Tạo mới Todo (ép userId từ token, không tin request)
 router.post('/', catchAsync(async (req, res) => {
+  req.body.userId = req.user._id; // Ép cứng userId từ token
   const newTodo = new Todo(req.body);
   await newTodo.save();
   res.json(newTodo);
 }));
 
-// Sửa Todo
+// Sửa Todo (chỉ sửa được Todo của chính mình)
 router.put('/:id', catchAsync(async (req, res) => {
-  const updatedTodo = await Todo.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  const updatedTodo = await Todo.findOneAndUpdate(
+    { _id: req.params.id, userId: req.user._id },
+    req.body,
+    { new: true }
+  );
   if (!updatedTodo) return res.status(404).json({ message: 'Không tìm thấy Todo để cập nhật' });
   res.json(updatedTodo);
 }));
 
-// Xóa Todo
+// Xóa Todo (chỉ xóa được Todo của chính mình)
 router.delete('/:id', catchAsync(async (req, res) => {
-  const deletedTodo = await Todo.findByIdAndDelete(req.params.id);
+  const deletedTodo = await Todo.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
   if (!deletedTodo) return res.status(404).json({ message: 'Không tìm thấy Todo để xóa' });
-  res.json({ message: 'Todo deleted' });
+  res.json({ message: 'Đã xóa Todo thành công' });
 }));
 
 module.exports = router;
