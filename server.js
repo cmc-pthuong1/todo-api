@@ -17,11 +17,16 @@ async function connectDB() {
   mongoServer = await MongoMemoryServer.create(); // Không dùng chữ const ở đây nữa
   const uri = mongoServer.getUri();
   
-  await mongoose.connect(uri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
+  await mongoose.connect(uri);
+  console.log('✅ MongoDB "Ảo" trong RAM đã chạy thành công tại:', uri);
+
+  // Theo dõi trạng thái kết nối
+  mongoose.connection.on('error', (err) => {
+    console.error('🔴 Lỗi kết nối MongoDB:', err.message);
   });
-  console.log('✅ MongoDB "Áo" trong RAM đã chạy thành công tại:', uri);
+  mongoose.connection.on('disconnected', () => {
+    console.warn('⚠️ MongoDB đã bị ngắt kết nối!');
+  });
 }
 
 // Routes (Auto-Load từ thư mục routes)
@@ -35,7 +40,10 @@ fs.readdirSync('./routes').forEach((file) => {
 // Global Error Handler (Hứng toàn bộ lỗi từ catchAsync đẩy xuống)
 app.use(globalErrorHandler);
 
+const seedAdmin = require('./seed');
+
 // Start server sau khi DB đã kết nối xong
-connectDB().then(() => {
+connectDB().then(async () => {
+  await seedAdmin(); // Tạo tài khoản admin mặc định
   app.listen(3001, () => console.log('Server running on http://localhost:3001'));
 }).catch(err => console.error("Lỗi khi khởi động Database:", err));
