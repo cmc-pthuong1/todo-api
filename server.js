@@ -24,9 +24,9 @@ async function connectDB() {
   mongoose.connection.on('error', (err) => {
     console.error('🔴 Lỗi kết nối MongoDB:', err.message);
   });
-  mongoose.connection.on('disconnected', () => {
-    console.warn('⚠️ MongoDB đã bị ngắt kết nối! Gõ "rs" trong terminal để khởi động lại.');
-  });
+  // mongoose.connection.on('disconnected', () => {
+  //   console.warn('⚠️ MongoDB đã bị ngắt kết nối! Gõ "rs" trong terminal để khởi động lại.');
+  // });
 }
 
 // Auth Routes (đăng ký / đăng nhập) - mount ở root /
